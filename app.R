@@ -2,7 +2,7 @@
 # Load libraries ----------------------------------------------------------
 
 lib <-  c("shiny", "readr", "stringr", "dplyr", "purrr", "tidyr", "ggplot2",
-          "corrplot", "plotly", "stats", "reshape2", "zip")
+          "corrplot", "plotly", "stats", "reshape2", "zip", "readxl")
 
 # Checking missing packages from list
 
@@ -18,7 +18,7 @@ invisible(lapply(lib, require, character.only = TRUE))
 # Define UI ---------------------------------------------------------------
 
 ui <- fluidPage(
-  titlePanel("msFragger (SPC) to SAINT files"),
+  titlePanel("MSFragger (SPC) to SAINT files"),
   br(),
   theme = bslib::bs_theme(bootswatch = "sandstone"),
   tabsetPanel(
@@ -28,6 +28,9 @@ ui <- fluidPage(
                        multiple = TRUE, accept = ".tsv"),
              br(),
              tableOutput("files"),
+             hr(),
+             fileInput("meta", "Upload metadata:", buttonLabel = "Upload .xlsx data", 
+                       multiple = TRUE, accept = ".xlsx"),
              hr(),
              HTML(paste0("<b>","Merging files","</b>")),
              br(),
@@ -101,6 +104,38 @@ server <- function(input, output, session) {
     }
     
   })
+  
+  meta <- reactive({
+    
+    req(input$meta)
+    
+    meta <- read_excel(input$meta$datapath)
+    
+  })
+  
+  
+  observeEvent(input$meta, {
+
+    if (all(meta()$sampleNames %in% colnames(data()[-c(1:3)]))){
+      
+      mes1 <- "sampleNames in the metadata file are the same as in the raw data - you can continue"
+      
+    } else{
+      
+      mes1 <- "One or several of the sampleNames in the metadata file are not the same as in the raw data - check before continuing"
+      
+    }
+    
+    showModal(modalDialog(
+      title = "Check, check",
+      mes1,
+      easyClose = TRUE,
+      footer = modalButton("OK!"),
+      fade = TRUE
+    ))
+    
+  })
+  
   
   
   output$files <- renderTable(input$upload) # Table showing what the user uploaded
@@ -185,7 +220,9 @@ server <- function(input, output, session) {
   
   keysFile <- reactive({
     
-    df <- bait_file(merged.data())
+    req(input$meta)
+    
+    df <- bait_file(merged.data(), meta())
     
     return(df)
     
@@ -195,7 +232,9 @@ server <- function(input, output, session) {
   
   saint.file <- reactive({
     
-    df <- interaction_file(merged.data())
+    req(input$meta)
+    
+    df <- interaction_file(merged.data(), meta())
     
     return(df)
     
@@ -222,13 +261,15 @@ server <- function(input, output, session) {
       setwd(tempdir())
       print(tempdir())
       
-      fs <- c("keysFile.tsv", "saint_file.tsv", "prey_file.tsv")
-      write.table(keysFile(), file = "keysFile.tsv", sep = "\t", 
-                  col.names = TRUE, row.names = FALSE, quote = FALSE)
-      write.table(saint.file(), file = "saint_file.tsv", sep = "\t", 
-                  col.names = TRUE, row.names = FALSE, quote = FALSE)
-      write.table(prey.file(), file = "prey_file.tsv", sep = "\t", 
-                  col.names = TRUE, row.names = FALSE, quote = FALSE)
+      fs <- c("bait_file.txt", "interaction_file.txt", "prey_file.txt")
+      
+      # SAINT does not work with column names, also only with .txt files
+      write.table(keysFile(), file = "bait_file.txt", sep = "\t", 
+                  col.names = FALSE, row.names = FALSE, quote = FALSE)
+      write.table(saint.file(), file = "interaction_file.txt", sep = "\t", 
+                  col.names = FALSE, row.names = FALSE, quote = FALSE)
+      write.table(prey.file(), file = "prey_file.txt", sep = "\t", 
+                  col.names = FALSE, row.names = FALSE, quote = FALSE)
       
       zip(zipfile=fname, files=fs)
       if(file.exists(paste0(fname, ".zip"))) {file.rename(paste0(fname, ".zip"), fname)}

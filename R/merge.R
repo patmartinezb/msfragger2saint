@@ -1,5 +1,8 @@
 
 
+# Merge function ----------------------------------------------------------
+
+
 merge.files <- function(dfs, by = "PROTID"){
   
   if (all(unlist(lapply(dfs, function(x){ str_detect(colnames(x[,1:3]), c("PROTID|GENEID|PROTLEN")) })))){
@@ -28,8 +31,3 @@ merge.files <- function(dfs, by = "PROTID"){
   }
   
 }
-
-
-
-
-
