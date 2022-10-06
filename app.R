@@ -2,7 +2,7 @@
 # Load libraries ----------------------------------------------------------
 
 lib <-  c("shiny", "readr", "stringr", "dplyr", "purrr", "tidyr", "ggplot2",
-          "corrplot", "plotly", "stats", "reshape2", "zip", "readxl")
+          "corrplot", "plotly", "stats", "reshape2", "zip", "readxl", "shinyjs")
 
 # Checking missing packages from list
 
@@ -46,7 +46,7 @@ ui <- fluidPage(
              "To download the three files to feed to SAINT (Bait, Prey and Interaction files)",
              "as a .zip file, press the download button below.",
              br(), br(),
-             downloadButton("download.saint", label = "Download SAINT files"),
+             shinyjs::hidden(downloadButton("download.saint", label = "Download SAINT files")),
              hr()
              
     ),
@@ -56,6 +56,7 @@ ui <- fluidPage(
                          selected = "Histogram",
                tabPanel("Histogram",
                         plotlyOutput("hist"),
+                        downloadButton("download.text", label = "Download counts")
                         ),
                
                tabPanel("Correlation plot",
@@ -202,6 +203,15 @@ server <- function(input, output, session) {
     ggplotly(p, height = height, width = width)
     
   })
+          
+  output$download.text <- downloadHandler(
+    filename = function() {
+      "counts.txt"
+    },
+    content = function(file) {
+      write.table(count.prot(merged.data()), file, sep = "\t", row.names = FALSE, quote = FALSE, col.names = TRUE)
+    }
+  )
   
   
   # Plot corrplot
@@ -276,6 +286,11 @@ server <- function(input, output, session) {
     },
     contentType = "application/zip"
   ) 
+          
+          
+   observeEvent(input$meta, {
+      shinyjs::show("download.saint")
+  })
   
 }
 
